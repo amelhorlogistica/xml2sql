@@ -3,266 +3,245 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>XML to SQL Converter</title>
+    <title>XML para SQL - NF-e Converter</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'JetBrains Mono', monospace;
-            background-color: #1a1a1a;
+            background-color: #121212;
             color: #e0e0e0;
         }
         .bg-custom-dark { background-color: #212121; }
-        .border-custom { border-color: #333333; }
-        .accent-blue { color: #60a5fa; }
-        .drop-zone {
-            border: 2px dashed #444;
-            transition: all 0.3s ease;
-        }
-        .drop-zone.active {
-            border-color: #60a5fa;
-            background-color: rgba(96, 165, 250, 0.05);
-        }
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #212121; }
-        ::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #555; }
+        .border-custom-accent { border-color: #3d3d3d; }
+        .drop-zone--over { border-color: #60a5fa; background-color: #2a2a2a; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #1a1a1a; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #444; }
     </style>
 </head>
-<body class="min-h-screen p-4 md:p-8">
+<body class="min-h-screen flex flex-col items-center p-4 md:p-8">
 
-    <div class="max-w-5xl mx-auto">
+    <div class="w-full max-w-5xl">
         <!-- Header -->
-        <header class="mb-10 text-center">
-            <h1 class="text-3xl font-bold mb-2 flex items-center justify-center gap-3">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 accent-blue" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                </svg>
-                XML <span class="text-blue-400">-></span> SQL
-            </h1>
-            <p class="text-gray-400">Conversor de Notas Fiscais (NF-e) para SQLite</p>
+        <header class="mb-8 text-center md:text-left flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <div>
+                <h1 class="text-3xl font-bold text-white mb-2">NF-e <span class="text-blue-400">XML ➜ SQL</span></h1>
+                <p class="text-gray-400 text-sm">Converta múltiplas Notas Fiscais para SQLite instantaneamente.</p>
+            </div>
+            <div id="statusBadge" class="hidden px-3 py-1 bg-blue-500/10 border border-blue-500/50 text-blue-400 rounded-full text-xs animate-pulse">
+                Processando arquivos...
+            </div>
         </header>
 
-        <main class="grid grid-cols-1 gap-8">
+        <main class="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <!-- Upload Section -->
-            <section class="bg-custom-dark rounded-xl p-6 border border-custom shadow-2xl">
-                <div id="dropZone" class="drop-zone rounded-lg p-10 flex flex-col items-center justify-center cursor-pointer mb-6">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-gray-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                    </svg>
-                    <p class="text-lg font-medium">Arraste seus arquivos XML aqui</p>
-                    <p class="text-sm text-gray-500 mt-2">Ou clique para selecionar múltiplos arquivos</p>
-                    <input type="file" id="fileInput" class="hidden" multiple accept=".xml">
-                </div>
-
-                <!-- Stats/Progress -->
-                <div id="statusContainer" class="hidden">
-                    <div class="flex justify-between items-center mb-2">
-                        <span id="fileCount" class="text-sm text-gray-400">0 arquivos selecionados</span>
-                        <button id="clearBtn" class="text-sm text-red-400 hover:text-red-300 transition-colors">Limpar Tudo</button>
-                    </div>
-                    <div class="w-full bg-gray-800 rounded-full h-2 mb-6">
-                        <div id="progressBar" class="bg-blue-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
-                    </div>
-                </div>
-
-                <div class="flex flex-col sm:flex-row gap-4">
-                    <button id="convertBtn" disabled class="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 px-6 rounded-lg transition-all shadow-lg flex items-center justify-center gap-2">
-                        Converter para SQL
-                    </button>
-                    <button id="downloadBtn" disabled class="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 px-6 rounded-lg transition-all shadow-lg flex items-center justify-center gap-2">
-                        Download .sql
-                    </button>
-                </div>
-            </section>
-
-            <!-- Preview Section -->
-            <section class="bg-custom-dark rounded-xl p-6 border border-custom shadow-2xl overflow-hidden">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-lg font-semibold text-blue-400">Preview do Script SQL</h2>
-                    <span class="text-xs bg-gray-800 px-2 py-1 rounded text-gray-400">SQLITE COMPATIBLE</span>
-                </div>
-                <div class="relative group">
-                    <textarea id="sqlPreview" readonly class="w-full h-80 bg-black bg-opacity-30 border border-custom rounded-lg p-4 text-xs text-green-400 focus:outline-none resize-none" placeholder="O código SQL gerado aparecerá aqui..."></textarea>
-                    <button id="copyBtn" class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 bg-gray-700 hover:bg-gray-600 p-2 rounded transition-all">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            <div class="lg:col-span-5 space-y-6">
+                <div id="dropZone" class="bg-custom-dark border-2 border-dashed border-custom-accent rounded-2xl p-8 flex flex-col items-center justify-center cursor-pointer transition-all hover:border-blue-500 group">
+                    <input type="file" id="fileInput" multiple accept=".xml" class="hidden">
+                    <div class="w-16 h-16 bg-blue-500/10 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                         </svg>
-                    </button>
+                    </div>
+                    <p class="text-white font-medium mb-1">Arraste seus XMLs aqui</p>
+                    <p class="text-gray-500 text-xs text-center">ou clique para selecionar arquivos do computador</p>
                 </div>
-            </section>
+
+                <!-- File List Container -->
+                <div class="bg-custom-dark rounded-2xl p-5 border border-custom-accent">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-sm font-bold uppercase tracking-wider text-gray-400">Fila de Processamento</h3>
+                        <span id="fileCount" class="text-xs bg-gray-800 px-2 py-0.5 rounded text-gray-300">0 arquivos</span>
+                    </div>
+                    <div id="fileList" class="max-h-60 overflow-y-auto custom-scrollbar space-y-2 text-xs">
+                        <p class="text-gray-600 italic">Nenhum arquivo selecionado.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Output Section -->
+            <div class="lg:col-span-7 space-y-6">
+                <div class="bg-custom-dark rounded-2xl border border-custom-accent overflow-hidden flex flex-col h-full min-h-[400px]">
+                    <div class="bg-[#1a1a1a] px-4 py-3 border-b border-custom-accent flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <div class="w-3 h-3 rounded-full bg-red-500/50"></div>
+                            <div class="w-3 h-3 rounded-full bg-yellow-500/50"></div>
+                            <div class="w-3 h-3 rounded-full bg-green-500/50"></div>
+                            <span class="ml-2 text-xs text-gray-500 font-mono">resultado_nfe.sql</span>
+                        </div>
+                        <button id="btnDownload" disabled class="opacity-50 cursor-not-allowed bg-blue-600 hover:bg-blue-500 text-white text-xs px-4 py-1.5 rounded-lg font-bold transition-all flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                            DOWNLOAD .SQL
+                        </button>
+                    </div>
+                    <div class="relative flex-grow">
+                        <pre id="sqlOutput" class="absolute inset-0 p-4 text-xs text-blue-300 overflow-auto custom-scrollbar whitespace-pre-wrap">-- O código SQL gerado aparecerá aqui...</pre>
+                    </div>
+                </div>
+            </div>
         </main>
 
-        <footer class="mt-12 text-center text-gray-600 text-sm">
-            <p>Processamento 100% Client-Side. Seus dados não saem do navegador.</p>
+        <!-- Footer Info -->
+        <footer class="mt-8 pt-6 border-t border-custom-accent text-center text-gray-600 text-[10px] uppercase tracking-[0.2em]">
+            Processamento 100% Client-Side • Privacidade Garantida • Engine de Conversão v1.0
         </footer>
     </div>
 
     <script>
         const dropZone = document.getElementById('dropZone');
         const fileInput = document.getElementById('fileInput');
-        const convertBtn = document.getElementById('convertBtn');
-        const downloadBtn = document.getElementById('downloadBtn');
-        const sqlPreview = document.getElementById('sqlPreview');
-        const progressBar = document.getElementById('progressBar');
-        const fileCountTxt = document.getElementById('fileCount');
-        const statusContainer = document.getElementById('statusContainer');
-        const clearBtn = document.getElementById('clearBtn');
-        const copyBtn = document.getElementById('copyBtn');
+        const fileList = document.getElementById('fileList');
+        const fileCountDisplay = document.getElementById('fileCount');
+        const sqlOutput = document.getElementById('sqlOutput');
+        const btnDownload = document.getElementById('btnDownload');
+        const statusBadge = document.getElementById('statusBadge');
 
-        let filesToProcess = [];
-        let generatedSql = '';
-
-        // UI Helpers
-        const updateUI = () => {
-            if (filesToProcess.length > 0) {
-                statusContainer.classList.remove('hidden');
-                fileCountTxt.textContent = `${filesToProcess.length} arquivo(s) selecionado(s)`;
-                convertBtn.disabled = false;
-            } else {
-                statusContainer.classList.add('hidden');
-                convertBtn.disabled = true;
-                downloadBtn.disabled = true;
-                sqlPreview.value = '';
-                progressBar.style.width = '0%';
-            }
-        };
+        let generatedSQL = "";
 
         // Event Listeners
-        dropZone.onclick = () => fileInput.click();
+        dropZone.addEventListener('click', () => fileInput.click());
         
-        fileInput.onchange = (e) => {
-            filesToProcess = [...e.target.files];
-            updateUI();
-        };
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drop-zone--over');
+        });
 
-        ['dragenter', 'dragover'].forEach(name => {
-            dropZone.addEventListener(name, (e) => {
-                e.preventDefault();
-                dropZone.classList.add('active');
+        ['dragleave', 'dragend'].forEach(type => {
+            dropZone.addEventListener(type, () => {
+                dropZone.classList.remove('drop-zone--over');
             });
         });
 
-        ['dragleave', 'drop'].forEach(name => {
-            dropZone.addEventListener(name, (e) => {
-                e.preventDefault();
-                dropZone.classList.remove('active');
-                if (name === 'drop') {
-                    filesToProcess = [...e.dataTransfer.files].filter(f => f.type === 'text/xml' || f.name.endsWith('.xml'));
-                    updateUI();
-                }
-            });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drop-zone--over');
+            if (e.dataTransfer.files.length > 0) {
+                handleFiles(e.dataTransfer.files);
+            }
         });
 
-        clearBtn.onclick = () => {
-            filesToProcess = [];
-            generatedSql = '';
-            fileInput.value = '';
-            updateUI();
-        };
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFiles(e.target.files);
+            }
+        });
 
-        copyBtn.onclick = () => {
-            sqlPreview.select();
-            document.execCommand('copy');
-            const originalText = copyBtn.innerHTML;
-            copyBtn.innerHTML = '<span class="text-xs">Copiado!</span>';
-            setTimeout(() => copyBtn.innerHTML = originalText, 2000);
-        };
+        btnDownload.addEventListener('click', downloadSQL);
 
-        // Conversion Logic
-        const getTagValue = (xml, tag) => {
-            const el = xml.getElementsByTagName(tag)[0];
-            return el ? el.textContent.replace(/'/g, "''") : null;
-        };
-
-        convertBtn.onclick = async () => {
-            if (filesToProcess.length === 0) return;
+        async function handleFiles(files) {
+            const xmlFiles = Array.from(files).filter(file => file.name.endsWith('.xml'));
             
-            convertBtn.disabled = true;
-            let sqlResult = `-- SQL GERADO EM ${new Date().toLocaleString('pt-BR')}\n\n`;
-            
-            // Schema Definition
-            sqlResult += `CREATE TABLE IF NOT EXISTS tb_notas (\n  id_nota INTEGER PRIMARY KEY AUTOINCREMENT,\n  chave_acesso TEXT UNIQUE,\n  numero_nf TEXT,\n  serie TEXT,\n  data_emissao TEXT,\n  valor_total REAL\n);\n\n`;
-            sqlResult += `CREATE TABLE IF NOT EXISTS tb_emitentes (\n  id_emitente INTEGER PRIMARY KEY AUTOINCREMENT,\n  chave_nota TEXT,\n  cnpj TEXT,\n  nome_fantasia TEXT,\n  uf TEXT\n);\n\n`;
-            sqlResult += `CREATE TABLE IF NOT EXISTS tb_destinatarios (\n  id_destinatario INTEGER PRIMARY KEY AUTOINCREMENT,\n  chave_nota TEXT,\n  cnpj_cpf TEXT,\n  nome TEXT\n);\n\n`;
-            sqlResult += `CREATE TABLE IF NOT EXISTS tb_produtos (\n  id_produto INTEGER PRIMARY KEY AUTOINCREMENT,\n  chave_nota TEXT,\n  codigo TEXT,\n  descricao TEXT,\n  ncm TEXT,\n  quantidade REAL,\n  valor_unitario REAL,\n  valor_total REAL\n);\n\n`;
-
-            const parser = new DOMParser();
-
-            for (let i = 0; i < filesToProcess.length; i++) {
-                const file = filesToProcess[i];
-                const content = await file.text();
-                const xmlDoc = parser.parseFromString(content, "text/xml");
-
-                // Identificadores de Base
-                const chave = getTagValue(xmlDoc, "chNFe") || file.name.replace('.xml', '');
-                const nNF = getTagValue(xmlDoc, "nNF");
-                const serie = getTagValue(xmlDoc, "serie");
-                const dhEmi = getTagValue(xmlDoc, "dhEmi");
-                const vNF = getTagValue(xmlDoc, "vNF");
-
-                // Inserir Nota
-                sqlResult += `INSERT OR IGNORE INTO tb_notas (chave_acesso, numero_nf, serie, data_emissao, valor_total) \nVALUES ('${chave}', '${nNF}', '${serie}', '${dhEmi}', ${vNF || 0});\n`;
-
-                // Emitente
-                const emit = xmlDoc.getElementsByTagName("emit")[0];
-                if (emit) {
-                    const eCNPJ = getTagValue(emit, "CNPJ");
-                    const eNome = getTagValue(emit, "xFant") || getTagValue(emit, "xNome");
-                    const eUF = getTagValue(emit, "UF");
-                    sqlResult += `INSERT INTO tb_emitentes (chave_nota, cnpj, nome_fantasia, uf) \nVALUES ('${chave}', '${eCNPJ}', '${eNome}', '${eUF}');\n`;
-                }
-
-                // Destinatário
-                const dest = xmlDoc.getElementsByTagName("dest")[0];
-                if (dest) {
-                    const dDoc = getTagValue(dest, "CNPJ") || getTagValue(dest, "CPF");
-                    const dNome = getTagValue(dest, "xNome");
-                    sqlResult += `INSERT INTO tb_destinatarios (chave_nota, cnpj_cpf, nome) \nVALUES ('${chave}', '${dDoc}', '${dNome}');\n`;
-                }
-
-                // Itens (Produtos)
-                const itens = xmlDoc.getElementsByTagName("det");
-                for (let det of itens) {
-                    const prod = det.getElementsByTagName("prod")[0];
-                    if (prod) {
-                        const cProd = getTagValue(prod, "cProd");
-                        const xProd = getTagValue(prod, "xProd");
-                        const ncm = getTagValue(prod, "NCM");
-                        const qCom = getTagValue(prod, "qCom");
-                        const vUnCom = getTagValue(prod, "vUnCom");
-                        const vProd = getTagValue(prod, "vProd");
-                        sqlResult += `INSERT INTO tb_produtos (chave_nota, codigo, descricao, ncm, quantidade, valor_unitario, valor_total) \nVALUES ('${chave}', '${cProd}', '${xProd}', '${ncm}', ${qCom || 0}, ${vUnCom || 0}, ${vProd || 0});\n`;
-                    }
-                }
-
-                sqlResult += `\n`;
-                
-                // Update Progress
-                const progress = ((i + 1) / filesToProcess.length) * 100;
-                progressBar.style.width = `${progress}%`;
+            if (xmlFiles.length === 0) {
+                showToast("Por favor, selecione apenas arquivos XML.");
+                return;
             }
 
-            generatedSql = sqlResult;
-            sqlPreview.value = sqlResult;
-            downloadBtn.disabled = false;
-            convertBtn.disabled = false;
-        };
+            statusBadge.classList.remove('hidden');
+            fileList.innerHTML = '';
+            fileCountDisplay.innerText = `${xmlFiles.length} arquivos`;
 
-        downloadBtn.onclick = () => {
-            if (!generatedSql) return;
-            const blob = new Blob([generatedSql], { type: 'text/sql' });
+            let sqlCommands = [];
+            
+            // Create Table Statement
+            const createTable = `CREATE TABLE IF NOT EXISTS tb_notas_fiscais (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nfe_chave TEXT,
+    nfe_numero TEXT,
+    nfe_serie TEXT,
+    nfe_data_emissao TEXT,
+    emitente_cnpj TEXT,
+    emitente_nome TEXT,
+    destinatario_cnpj_cpf TEXT,
+    destinatario_nome TEXT,
+    valor_total_nota REAL,
+    valor_icms REAL,
+    data_importacao DATETIME DEFAULT CURRENT_TIMESTAMP
+);\n\n`;
+            
+            sqlCommands.push(createTable);
+
+            for (const file of xmlFiles) {
+                // Add to list UI
+                const item = document.createElement('div');
+                item.className = "flex items-center justify-between p-2 bg-[#2a2a2a] rounded border border-white/5";
+                item.innerHTML = `
+                    <span class="truncate pr-4">${file.name}</span>
+                    <span class="text-[10px] text-green-500 font-bold uppercase">OK</span>
+                `;
+                fileList.appendChild(item);
+
+                try {
+                    const text = await file.text();
+                    const parser = new DOMParser();
+                    const xmlDoc = parser.parseFromString(text, "text/xml");
+
+                    // Helper para pegar valores do XML com segurança
+                    const getVal = (path) => {
+                        const node = xmlDoc.querySelector(path);
+                        return node ? node.textContent.replace(/'/g, "''") : "NULL";
+                    };
+
+                    // Extração de dados básica (Layout padrão NF-e)
+                    const chave = xmlDoc.querySelector('infNFe')?.getAttribute('Id')?.replace('NFe', '') || "NULL";
+                    const numero = getVal('ide > nNF');
+                    const serie = getVal('ide > serie');
+                    const dhEmi = getVal('ide > dhEmi');
+                    
+                    const emitCNPJ = getVal('emit > CNPJ');
+                    const emitNome = getVal('emit > xNome');
+                    
+                    const destCNPJ = getVal('dest > CNPJ') !== "NULL" ? getVal('dest > CNPJ') : getVal('dest > CPF');
+                    const destNome = getVal('dest > xNome');
+                    
+                    const vNF = getVal('total > ICMSTot > vNF');
+                    const vICMS = getVal('total > ICMSTot > vICMS');
+
+                    const insert = `INSERT INTO tb_notas_fiscais (nfe_chave, nfe_numero, nfe_serie, nfe_data_emissao, emitente_cnpj, emitente_nome, destinatario_cnpj_cpf, destinatario_nome, valor_total_nota, valor_icms) 
+VALUES ('${chave}', '${numero}', '${serie}', '${dhEmi}', '${emitCNPJ}', '${emitNome}', '${destCNPJ}', '${destNome}', ${vNF}, ${vICMS});`;
+                    
+                    sqlCommands.push(insert);
+                } catch (err) {
+                    console.error("Erro ao processar arquivo:", file.name, err);
+                }
+            }
+
+            generatedSQL = sqlCommands.join('\n');
+            sqlOutput.textContent = generatedSQL;
+            
+            // Enable download
+            btnDownload.disabled = false;
+            btnDownload.classList.remove('opacity-50', 'cursor-not-allowed');
+            statusBadge.classList.add('hidden');
+        }
+
+        function downloadSQL() {
+            if (!generatedSQL) return;
+            const blob = new Blob([generatedSQL], { type: 'text/sql' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
             a.href = url;
-            a.download = `notas_fiscais_${new Date().getTime()}.sql`;
+            a.download = `importacao_nfe_${timestamp}.sql`;
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
-        };
+        }
+
+        function showToast(msg) {
+            // Simples aviso caso não seja XML
+            const alertBox = document.createElement('div');
+            alertBox.className = "fixed bottom-10 left-1/2 -translate-x-1/2 bg-red-600 text-white px-6 py-3 rounded-full shadow-2xl text-sm font-bold z-50 animate-bounce";
+            alertBox.innerText = msg;
+            document.body.appendChild(alertBox);
+            setTimeout(() => alertBox.remove(), 3000);
+        }
     </script>
 </body>
 </html>
